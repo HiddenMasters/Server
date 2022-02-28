@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 from starlette.authentication import UnauthenticatedUser
 
-from app.database.schema import Profiles, Inventories, Attendances, Items, db
-from app.models import Profile, Attendance
+from app.database.schema import Profiles, Inventories, Attendances, Items, Orders, Trades, db
+from app.models import Profile, Attendance, InventoriesBase, ExhibitionInventories, ItemHistory
 
 
 router = APIRouter()
@@ -17,13 +17,50 @@ router = APIRouter()
 @router.get('/accounts/me', status_code=status.HTTP_200_OK, response_model=Profile)
 async def get_me(request: Request):
     profile = Profiles.get(user=request.user.id)
-    items = Items.filter(id__in=[element.item for element in Inventories.filter(
-        owner=Profiles.get(user=request.user.id).id).all()]).all()
-    profile.inventories = items
     return profile
 
 
-@router.post('accounts/attendance', status_code=status.HTTP_201_CREATED, response_model=Attendance)
+@router.get('/accounts/history/buy', status_code=status.HTTP_200_OK, response_model=ItemHistory)
+async def get_my_buy_history(request: Request):
+    profile = Profiles.get(user=request.user.id)
+    items = Items.filter(id__in=list(set([element.item for element in Orders.filter(buyer=profile.id).all()]))).all()
+    return {
+        'histories': items
+    }
+
+
+@router.get('/accounts/history/sell', status_code=status.HTTP_200_OK, response_model=ItemHistory)
+async def get_my_sell_history(request: Request):
+    profile = Profiles.get(user=request.user.id)
+    items = Items.filter(id__in=list(set([element.item for element in Trades.filter(owner=profile.id).all()]))).all()
+    return {
+        'histories': items
+    }
+
+
+@router.get('/accounts/inventories', status_code=status.HTTP_200_OK, response_model=InventoriesBase)
+async def get_inventories(request: Request):
+    profile = Profiles.get(user=request.user.id)
+    items = Items.filter(id__in=[element.item for element in Inventories.filter(
+        owner=profile.id).all()]).all()
+    return {
+        'inventories': items
+    }
+
+
+@router.get('/accounts/inventories/exhibition', status_code=status.HTTP_200_OK, response_model=ExhibitionInventories)
+async def get_trades(request: Request):
+    profile = Profiles.get(user=request.user.id)
+    trades = Trades.filter(id__in=[element.item for element in Inventories.filter(
+        owner=profile.id).all()]).all()
+    for trade in trades:
+        trade.item = Items.get(id=trade.item)
+    return {
+        'exhibitionInventories': trades
+    }
+
+
+@router.post('/accounts/attendance', status_code=status.HTTP_201_CREATED, response_model=Attendance)
 async def create_attendance(request: Request, session: Session = Depends(db.session)):
     # * UnauthenticatedUser Error
     if isinstance(request.user, UnauthenticatedUser):
@@ -38,7 +75,7 @@ async def create_attendance(request: Request, session: Session = Depends(db.sess
     return Attendances.create(session=session, auto_commit=True, profile=profile, attendance_date=today)
 
 
-@router.get('accounts/attendances', status_code=status.HTTP_200_OK, response_model=list[Attendance])
+@router.get('/accounts/attendances', status_code=status.HTTP_200_OK, response_model=list[Attendance])
 async def get_attendances(request: Request):
     profile = Profiles.get(user=request.user.id).id
     today = date.today()

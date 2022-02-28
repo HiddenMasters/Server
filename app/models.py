@@ -41,9 +41,37 @@ class ItemBase(BaseModel):
     price: float = 0
 
 
+class SimpleItem(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    price: float
+    upload: str
+
+    class Config:
+        orm_mode = True
+
+
+class ItemHistory(BaseModel):
+    histories: list[SimpleItem]
+
+    class Config:
+        orm_mode = True
+
+
 class Item(ItemBase):
     id: int
     author: int
+    upload: str
+
+    class Config:
+        orm_mode = True
+
+
+class ExhibitionItem(BaseModel):
+    id: int
+    name: str
+    author: str
     upload: str
 
     class Config:
@@ -79,8 +107,18 @@ class UserBase(BaseModel):
 
 
 class Inventory(BaseModel):
-    owner: int
-    item: int
+    id: int
+    upload: str
+
+    class Config:
+        orm_mode = True
+
+
+class InventoriesBase(BaseModel):
+    inventories: list[Inventory]
+
+    class Config:
+        orm_mode = True
 
 
 class Profile(BaseModel):
@@ -88,7 +126,6 @@ class Profile(BaseModel):
     user: int
     nickname: str
     money: float
-    inventories: list[Item] | None
 
     class Config:
         orm_mode = True
@@ -100,12 +137,38 @@ class TradeRegister(BaseModel):
     immediatePrice: float
 
 
+class ExhibitionInventory(BaseModel):
+    item: SimpleItem
+    expire: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class ExhibitionInventories(BaseModel):
+    exhibitionInventories: list[ExhibitionInventory]
+
+    class Config:
+        orm_mode = True
+
+
 class Trade(BaseModel):
     id: int
     owner: int
     item: int
     expire: datetime
-    order_price: float
+    immediate_price: float
+    is_sell: bool
+
+    class Config:
+        orm_mode = True
+
+
+class ExhibitionTrade(BaseModel):
+    id: int
+    owner: str
+    item: int
+    expire: datetime
     immediate_price: float
     is_sell: bool
 
@@ -115,9 +178,8 @@ class Trade(BaseModel):
 
 class OrderRegister(BaseModel):
     item: int
-    price: float
     trade: int
-    status: OrderStatus = "order"
+    status: OrderStatus = "buy"
 
 
 class Order(BaseModel):
@@ -141,11 +203,10 @@ class Attendance(BaseModel):
 
 
 class Exhibition(BaseModel):
-    item: Item
-    trade: Trade | None
+    item: ExhibitionItem
+    trade: ExhibitionTrade | None
     hall: int
     num: int
-    expire: datetime | None
     max_width: int
     max_height: int
 
